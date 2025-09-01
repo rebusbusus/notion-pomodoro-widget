@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pomodoro Timer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        /*
+        * Customisation Guide for a "Dark Academia" Aesthetic
+        *
+        * You can change the colours below to match your theme.
+        * These colours are a great starting point for a classic,
+        * dark, and elegant look.
+        */
+        :root {
+            /* Main background colour - a deep charcoal or off-black */
+            --bg-color: #1A1A1A;
+            /* Container background - slightly lighter than main background */
+            --container-bg: #262626;
+            /* Primary text colour - a soft white or cream */
+            --text-color: #F0EAD6;
+            /* Accent colour for buttons - a muted, elegant tone */
+            --btn-start-bg: #5B8E7D; /* A deep forest green */
+            --btn-start-hover-bg: #4A7062;
+            --btn-pause-bg: #B59410; /* A gold or mustard yellow */
+            --btn-pause-hover-bg: #997D0D;
+            --btn-reset-bg: #A34E2F; /* A dark red or maroon */
+            --btn-reset-hover-bg: #8A4126;
+            /* Message box colour */
+            --message-bg: #3B3B3B;
+            --message-text: #F0EAD6;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            padding: 1rem;
+            overflow: hidden;
+        }
+        .timer-container {
+            width: 100%;
+            max-width: 400px;
+            background-color: var(--container-bg);
+            padding: 2.5rem 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        #timer-display {
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            color: var(--text-color);
+            text-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+        }
+        .buttons-container {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+        }
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 9999px;
+            font-weight: 700;
+            transition: all 0.2s ease-in-out;
+            cursor: pointer;
+            border: 2px solid transparent;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        .btn-start {
+            background-color: var(--btn-start-bg);
+            color: white;
+        }
+        .btn-start:hover {
+            background-color: var(--btn-start-hover-bg);
+        }
+        .btn-pause {
+            background-color: var(--btn-pause-bg);
+            color: white;
+        }
+        .btn-pause:hover {
+            background-color: var(--btn-pause-hover-bg);
+        }
+        .btn-reset {
+            background-color: var(--btn-reset-bg);
+            color: white;
+        }
+        .btn-reset:hover {
+            background-color: var(--btn-reset-hover-bg);
+        }
+        .text-sm {
+            margin-top: 1rem;
+            color: #a3a3a3;
+        }
+        /* Custom message box styling */
+        .message-box {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: var(--message-bg);
+            color: var(--message-text);
+            padding: 1rem 2rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+        }
+        .message-box.visible {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+
+<div class="timer-container">
+    <h1 id="timer-display">25:00</h1>
+    <div class="buttons-container">
+        <button id="start-btn" class="btn btn-start">Start</button>
+        <button id="pause-btn" class="btn btn-pause hidden">Pause</button>
+        <button id="reset-btn" class="btn btn-reset">Reset</button>
+    </div>
+    <p class="text-sm">25-minute sessions, 5-minute breaks.</p>
+</div>
+
+<!-- Custom Message Box -->
+<div id="message-box" class="message-box"></div>
+
+<script>
+    const timerDisplay = document.getElementById('timer-display');
+    const startBtn = document.getElementById('start-btn');
+    const pauseBtn = document.getElementById('pause-btn');
+    const resetBtn = document.getElementById('reset-btn');
+    const messageBox = document.getElementById('message-box');
+
+    let timer;
+    let isRunning = false;
+    let timeInSeconds = 25 * 60; // 25 minutes for work session
+    const pomodoroTime = 25 * 60;
+    const breakTime = 5 * 60;
+    let isWorkSession = true;
+
+    function formatTime(seconds) {
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = seconds % 60;
+        return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+    }
+
+    // Function to display a temporary message
+    function showMessage(text) {
+        messageBox.textContent = text;
+        messageBox.classList.add('visible');
+        setTimeout(() => {
+            messageBox.classList.remove('visible');
+        }, 3000); // Hide the message after 3 seconds
+    }
+
+    function updateTimer() {
+        if (timeInSeconds <= 0) {
+            clearInterval(timer);
+            isRunning = false;
+            if (isWorkSession) {
+                showMessage("Pomodoro session complete! Time for a short break.");
+                timeInSeconds = breakTime;
+                isWorkSession = false;
+                startTimer();
+            } else {
+                showMessage("Break is over! Time to get back to work.");
+                timeInSeconds = pomodoroTime;
+                isWorkSession = true;
+                timerDisplay.textContent = formatTime(timeInSeconds);
+                startBtn.classList.remove('hidden');
+                pauseBtn.classList.add('hidden');
+            }
+        } else {
+            timeInSeconds--;
+            timerDisplay.textContent = formatTime(timeInSeconds);
+        }
+    }
+
+    function startTimer() {
+        if (!isRunning) {
+            isRunning = true;
+            timer = setInterval(updateTimer, 1000);
+            startBtn.classList.add('hidden');
+            pauseBtn.classList.remove('hidden');
+        }
+    }
+
+    function pauseTimer() {
+        if (isRunning) {
+            clearInterval(timer);
+            isRunning = false;
+            startBtn.classList.remove('hidden');
+            pauseBtn.classList.add('hidden');
+        }
+    }
+
+    function resetTimer() {
+        clearInterval(timer);
+        isRunning = false;
+        isWorkSession = true;
+        timeInSeconds = pomodoroTime;
+        timerDisplay.textContent = formatTime(timeInSeconds);
+        startBtn.classList.remove('hidden');
+        pauseBtn.classList.add('hidden');
+    }
+
+    // Event Listeners
+    startBtn.addEventListener('click', startTimer);
+    pauseBtn.addEventListener('click', pauseTimer);
+    resetBtn.addEventListener('click', resetTimer);
+
+    // Initial display
+    timerDisplay.textContent = formatTime(timeInSeconds);
+</script>
+
+</body>
+</html>
+
